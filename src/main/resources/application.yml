@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    consul:
+      discovery:
+        enabled: true
+        register: true
+        prefer-ip-address: true
+        ip-address: 172.17.0.1
+        instanceId: ${spring.application.name}:${random.value}
+
+management:
+  security:
+    enabled: false

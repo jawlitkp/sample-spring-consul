@@ -1,0 +1,170 @@
+= Ejemplo de integración de Consul y Spring Boot  
+
+== Introducción
+
+En este ejemplo se muestran las capacidades de https://cloud.spring.io/spring-cloud-consul/[Spring Cloud Consul]
+tanto para el descubrimiento de servicios como para el uso de una
+https://cloud.spring.io/spring-cloud-config/[configuración distribuída].
+
+Nuestra aplicación será muy sencilla, simplemente utilizaremos las anotaciones 
+
+
+[source,java]
+----
+@Configuration
+@EnableAutoConfiguration
+@EnableDiscoveryClient
+public class ConsulSampleApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ConsulSampleApplication.class, args);
+	}
+
+}
+----
+
+== Docker
+
+En primer lugar nos descargaremos la última versión de consul y levantaremos el contenedor con el
+siguiente comando:
+
+----
+docker run  -p 8500:8500 -p 8600:8600/udp --name=consul consul:latest agent -server -bootstrap -ui -client=0.0.0.0
+----
+
+Una vez arrancado podremos entrar en la consola web: http://localhost:8500/ui
+
+También podremos comprobar el estado haciendo:
+
+----
+curl http://localhost:8500/v1/health/service/consul?pretty
+----
+
+En este caso necesitaremos conocer la IP con la que el contenedor resolverá el servicio que
+queremos descubrir. Para ello simplemente ejecutaremos el comando
+
+----
+$ docker network inspect bridge
+[
+    {
+        "Name": "bridge",
+        "Id": "31de39115c56a7129ad297ff038fbd08ff9bf731f035f53c24f29c9578f89c04",
+        "Created": "2018-05-17T08:38:32.147242687+02:00",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.17.0.0/16",
+                    "Gateway": "172.17.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Containers": {
+            "18478727e1166e5ead3e5d3f14a3dec50f22fe64a59be683184f7b89d862dd5b": {
+                "Name": "consul",
+                "EndpointID": "732cd731fb163c1f86e1457e5524ef1f7ce52eab96a79d0b458975dc97128c27",
+                "MacAddress": "02:42:ac:11:00:02",
+                "IPv4Address": "172.17.0.2/16",
+                "IPv6Address": ""
+            }
+        },
+        "Options": {
+            "com.docker.network.bridge.default_bridge": "true",
+            "com.docker.network.bridge.enable_icc": "true",
+            "com.docker.network.bridge.enable_ip_masquerade": "true",
+            "com.docker.network.bridge.host_binding_ipv4": "0.0.0.0",
+            "com.docker.network.bridge.name": "docker0",
+            "com.docker.network.driver.mtu": "1500"
+        },
+        "Labels": {}
+    }
+]
+
+Y vemos que resuelve nuestra IP como 172.17.0.1.
+
+Este será el valor en nuestro ejemplo que tendremos que indicar en la configuración de service-discovery:
+
+[source,yml]
+----
+spring:
+  cloud:
+    consul:
+      discovery:
+        enabled: true
+        register: true
+        prefer-ip-address: true
+        ip-address: 172.17.0.1
+        instanceId: ${spring.application.name}:${random.value}
+----
+
+Podemos comprobar que resuelve correctamente nuestra ip ejecutando:
+
+----
+docker exec -it ${containerId} ping 172.17.0.1 -c 1
+----
+
+== Probando la configuración
+
+Para consultar la configuración vamos a incluir un servicio REST sencillo que simplemente devolverá
+los valores recuperados:
+
+[source,java]
+----
+@RestController
+public class ConfigSampleController {
+
+	@Autowired
+	private Environment env;
+
+	@GetMapping("/api/v1/config/{key}")
+	public ResponseEntity<String> get(@PathVariable("key") String key) {
+		if (env.containsProperty(key)) {
+			return ResponseEntity.ok(env.getProperty(key));
+		}
+		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+	}
+}
+----
+
+Después desde la consola podremos de forma sencilla crear las siguientes claves de configuración:
+
+
+
+Para comprobar que nuestra aplicación resuelve correctamente ese valor podemos hacer la siguiente
+petición:
+
+----
+curl http://localhost:8080/api/v1/config/foo
+----
+
+Que devolverá el valor que hemos introducido anteriormente.
+
+Vemos que si desde la consola de administración cambiamos el valor nuestra aplicación
+automáticamente actualiza dicho valor:
+
+----
+2018-05-17 11:20:23.252  INFO 27664 --- [ask-scheduler-3] s.c.a.AnnotationConfigApplicationContext : Refreshing org.springframework.context.annotation.AnnotationConfigApplicationContext@1176c553: startup date [Thu May 17 11:20:23 CEST 2018]; root of context hierarchy
+2018-05-17 11:20:23.283  INFO 27664 --- [ask-scheduler-3] f.a.AutowiredAnnotationBeanPostProcessor : JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2018-05-17 11:20:23.295  INFO 27664 --- [ask-scheduler-3] trationDelegate$BeanPostProcessorChecker : Bean 'configurationPropertiesRebinderAutoConfiguration' of type [org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration$$EnhancerBySpringCGLIB$$e02d6bc] is not eligible for getting processed by all BeanPostProcessors (for example: not eligible for auto-proxying)
+2018-05-17 11:20:23.507  INFO 27664 --- [ask-scheduler-3] b.c.PropertySourceBootstrapConfiguration : Located property source: CompositePropertySource [name='consul', propertySources=[ConsulPropertySource {name='config/consul-sample/'}, ConsulPropertySource {name='config/application/'}]]
+2018-05-17 11:20:23.509  INFO 27664 --- [ask-scheduler-3] o.s.boot.SpringApplication               : No active profile set, falling back to default profiles: default
+2018-05-17 11:20:23.511  INFO 27664 --- [ask-scheduler-3] s.c.a.AnnotationConfigApplicationContext : Refreshing org.springframework.context.annotation.AnnotationConfigApplicationContext@720b5947: startup date [Thu May 17 11:20:23 CEST 2018]; parent: org.springframework.context.annotation.AnnotationConfigApplicationContext@1176c553
+2018-05-17 11:20:23.517  INFO 27664 --- [ask-scheduler-3] f.a.AutowiredAnnotationBeanPostProcessor : JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2018-05-17 11:20:23.538  INFO 27664 --- [ask-scheduler-3] o.s.boot.SpringApplication               : Started application in 0.5 seconds (JVM running for 131.782)
+2018-05-17 11:20:23.539  INFO 27664 --- [ask-scheduler-3] s.c.a.AnnotationConfigApplicationContext : Closing org.springframework.context.annotation.AnnotationConfigApplicationContext@720b5947: startup date [Thu May 17 11:20:23 CEST 2018]; parent: org.springframework.context.annotation.AnnotationConfigApplicationContext@1176c553
+2018-05-17 11:20:23.540  INFO 27664 --- [ask-scheduler-3] s.c.a.AnnotationConfigApplicationContext : Closing org.springframework.context.annotation.AnnotationConfigApplicationContext@1176c553: startup date [Thu May 17 11:20:23 CEST 2018]; root of context hierarchy
+2018-05-17 11:20:23.734  INFO 27664 --- [ask-scheduler-3] o.s.c.e.event.RefreshEventListener       : Refresh keys changed: [foo]
+----
+
+
