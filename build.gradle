@@ -2,7 +2,7 @@ buildscript {
   ext {
     //springBootVersion = '2.0.2.RELEASE'
     springBootVersion = '1.5.13.RELEASE'
-    useProxy = true
+    useProxy = false
   }
   repositories {
     if(useProxy) {
