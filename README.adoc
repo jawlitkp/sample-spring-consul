@@ -1,6 +1,6 @@
 = Ejemplo de integración de Consul y Spring Boot  
 
-:imagesdir: docs/images:
+image:https://travis-ci.org/labcabrera/sample-spring-consul.svg?branch=master["Build Status", link="https://travis-ci.org/labcabrera/sample-spring-consul"]
 
 == Introducción
 
