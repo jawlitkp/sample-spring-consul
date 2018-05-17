@@ -142,7 +142,7 @@ public class ConfigSampleController {
 
 Después desde la consola podremos de forma sencilla crear las siguientes claves de configuración:
 
-image::consul-console-add-key-value.png[Adding custom configuration property]
+image::https://raw.githubusercontent.com/labcabrera/sample-spring-consul/master/docs/images/consul-console-add-key-value.png[Adding custom configuration property]
 
 
 Para comprobar que nuestra aplicación resuelve correctamente ese valor podemos hacer la siguiente
