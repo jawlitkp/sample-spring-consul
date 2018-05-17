@@ -187,19 +187,22 @@ public RestTemplate loadbalancedRestTemplate() {
 }
 ----
 
-Después simplemente crearemos un cliente que obtenga el endpoint obtenido desde Consul:
+Después simplemente crearemos un cliente que obtenga el endpoint desde Consul:
 
 [source,java]
 ----
 @RestController
 public class ApiConsumerController {
 
+  @Value("http://${spring.application.name}/api/v1/dummy")
+  private String endpoint;
+
   @Autowired
   private RestTemplate restTemplate;
 
   @GetMapping("/api/v1/consumer")
   public DummyMessage consume() {
-    return this.restTemplate.getForObject("http://consul-sample/api/v1/dummy", DummyMessage.class);
+    return restTemplate.getForObject(endpoint, DummyMessage.class);
   }
 
 }
@@ -224,8 +227,10 @@ Inspeccionando el log veremos:
 2018-05-17 12:18:47.280  INFO 3849 --- [nio-8080-exec-7] c.netflix.loadbalancer.BaseLoadBalancer  : Client: consul-sample instantiated a LoadBalancer: DynamicServerListLoadBalancer:{NFLoadBalancer:name=consul-sample,current list of Servers=[],Load balancer stats=Zone stats: {},Server stats: []}ServerList:null
 2018-05-17 12:18:47.292  INFO 3849 --- [nio-8080-exec-7] c.n.l.DynamicServerListLoadBalancer      : Using serverListUpdater PollingServerListUpdater
 2018-05-17 12:18:47.354  INFO 3849 --- [nio-8080-exec-7] c.netflix.config.ChainedDynamicProperty  : Flipping property: consul-sample.ribbon.ActiveConnectionsLimit to use NEXT property: niws.loadbalancer.availabilityFilteringRule.activeConnectionsLimit = 2147483647
-2018-05-17 12:18:47.363  INFO 3849 --- [nio-8080-exec-7] c.n.l.DynamicServerListLoadBalancer      : DynamicServerListLoadBalancer for client consul-sample initialized: DynamicServerListLoadBalancer:{NFLoadBalancer:name=consul-sample,current list of Servers=[172.17.0.1:8080, 172.17.0.1:8080, 172.17.0.1:8080],Load balancer stats=Zone stats: {unknown=[Zone:unknown;	Instance count:3;	Active connections count: 0;	Circuit breaker tripped count: 0;	Active connections per server: 0.0;]
-},Server stats: [[Server:172.17.0.1:8080;	Zone:UNKNOWN;	Total Requests:0;	Successive connection failure:0;	Total blackout seconds:0;	Last connection made:Thu Jan 01 01:00:00 CET 1970;	First connection made: Thu Jan 01 01:00:00 CET 1970;	Active Connections:0;	total failure count in last (1000) msecs:0;	average resp time:0.0;	90 percentile resp time:0.0;	95 percentile resp time:0.0;	min resp time:0.0;	max resp time:0.0;	stddev resp time:0.0]
+2018-05-17 12:18:47.363  INFO 3849 --- [nio-8080-exec-7] c.n.l.DynamicServerListLoadBalancer      : DynamicServerListLoadBalancer for client consul-sample initialized: DynamicServerListLoadBalancer:{NFLoadBalancer:name=consul-sample,current list of Servers=[172.17.0.1:8080, 172.17.0.1:8080, 172.17.0.1:8080],Load balancer stats=Zone stats: {unknown=[Zone:unknown;  Instance count:3;  Active connections count: 0;  Circuit breaker tripped count: 0;  Active connections per server: 0.0;]
+},Server stats: [[Server:172.17.0.1:8080;  Zone:UNKNOWN;  Total Requests:0;  Successive connection failure:0;  Total blackout seconds:0;  Last connection made:Thu Jan 01 01:00:00 CET 1970;  First connection made: Thu Jan 01 01:00:00 CET 1970;  Active Connections:0;  total failure count in last (1000) msecs:0;  average resp time:0.0;  90 percentile resp time:0.0;  95 percentile resp time:0.0;  min resp time:0.0;  max resp time:0.0;  stddev resp time:0.0]
 ]}ServerList:ConsulServerList{serviceId='consul-sample', tag=null}
 2018-05-17 12:18:48.315  INFO 3849 --- [erListUpdater-0] c.netflix.config.ChainedDynamicProperty  : Flipping property: consul-sample.ribbon.ActiveConnectionsLimit to use NEXT property: niws.loadbalancer.availabilityFilteringRule.activeConnectionsLimit = 2147483647
 ----
+
+Y eso es todo por el momento.
