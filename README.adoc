@@ -205,6 +205,9 @@ public class ApiConsumerController {
 }
 ----
 
+Siendo _consul-sample_ nuestro identificador de servicio con el que nos hemos registrado en Consul
+(este valor será el _spring.application.name_).
+
 Para probar que funciona simplemente haremos la siguiente petición
 ----
 $ curl http://localhost:8080/api/v1/consumer
