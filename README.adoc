@@ -90,6 +90,7 @@ $ docker network inspect bridge
         "Labels": {}
     }
 ]
+----
 
 Y vemos que resuelve nuestra IP como 172.17.0.1.
 
@@ -139,6 +140,7 @@ public class ConfigSampleController {
 
 Después desde la consola podremos de forma sencilla crear las siguientes claves de configuración:
 
+image::docs/images/consul-console-add-key-value.png
 
 
 Para comprobar que nuestra aplicación resuelve correctamente ese valor podemos hacer la siguiente
