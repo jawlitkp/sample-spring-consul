@@ -7,9 +7,10 @@
 En este ejemplo se muestran las capacidades de https://cloud.spring.io/spring-cloud-consul/[Spring Cloud Consul]
 tanto para el descubrimiento de servicios como para el uso de una
 https://cloud.spring.io/spring-cloud-config/[configuración distribuída].
+En este ejemplo utilizaremos una instancia local de https://www.consul.io/[Consul] a través de la
+https://hub.docker.com/_/consul/[imagen de DockerHub].
 
 Nuestra aplicación será muy sencilla, simplemente utilizaremos las anotaciones 
-
 
 [source,java]
 ----
@@ -18,9 +19,9 @@ Nuestra aplicación será muy sencilla, simplemente utilizaremos las anotaciones
 @EnableDiscoveryClient
 public class ConsulSampleApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ConsulSampleApplication.class, args);
-	}
+  public static void main(String[] args) {
+    SpringApplication.run(ConsulSampleApplication.class, args);
+  }
 
 }
 ----
@@ -124,19 +125,15 @@ los valores recuperados:
 
 [source,java]
 ----
-@RestController
-public class ConfigSampleController {
+@EnableAutoConfiguration
+@EnableDiscoveryClient
+@SpringBootApplication
+public class ConsulSampleApplication {
 
-	@Autowired
-	private Environment env;
+  public static void main(String[] args) {
+    SpringApplication.run(ConsulSampleApplication.class, args);
+  }
 
-	@GetMapping("/api/v1/config/{key}")
-	public ResponseEntity<String> get(@PathVariable("key") String key) {
-		if (env.containsProperty(key)) {
-			return ResponseEntity.ok(env.getProperty(key));
-		}
-		return new ResponseEntity<>(HttpStatus.NO_CONTENT);
-	}
 }
 ----
 
@@ -172,3 +169,55 @@ automáticamente actualiza dicho valor:
 ----
 
 
+== Service discovery
+
+Para utilizar el sistema de registro de servicios primero declararemos el siguiente bean:
+
+[source,java]
+----
+@LoadBalanced
+@Bean
+public RestTemplate loadbalancedRestTemplate() {
+  return new RestTemplate();
+}
+----
+
+Después simplemente crearemos un cliente que obtenga el endpoint obtenido desde Consul:
+
+[source,java]
+----
+@RestController
+public class ApiConsumerController {
+
+  @Autowired
+  private RestTemplate restTemplate;
+
+  @GetMapping("/api/v1/consumer")
+  public DummyMessage consume() {
+    return this.restTemplate.getForObject("http://consul-sample/api/v1/dummy", DummyMessage.class);
+  }
+
+}
+----
+
+Para probar que funciona simplemente haremos la siguiente petición
+----
+$ curl http://localhost:8080/api/v1/consumer
+{"id":"a66a3e5d-4679-4c6d-8d5b-1d284807a81f","subject":"Hello","body":"Generated at 2018-05-17T12:18:47.566"}
+----
+
+Inspeccionando el log veremos:
+
+----
+2018-05-17 12:18:46.647  INFO 3849 --- [nio-8080-exec-7] s.c.a.AnnotationConfigApplicationContext : Refreshing org.springframework.context.annotation.AnnotationConfigApplicationContext@5c666bb7: startup date [Thu May 17 12:18:46 CEST 2018]; parent: org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext@859ea42
+2018-05-17 12:18:46.724  INFO 3849 --- [nio-8080-exec-7] f.a.AutowiredAnnotationBeanPostProcessor : JSR-330 'javax.inject.Inject' annotation found and supported for autowiring
+2018-05-17 12:18:47.110  INFO 3849 --- [nio-8080-exec-7] c.netflix.config.ChainedDynamicProperty  : Flipping property: consul-sample.ribbon.ActiveConnectionsLimit to use NEXT property: niws.loadbalancer.availabilityFilteringRule.activeConnectionsLimit = 2147483647
+2018-05-17 12:18:47.191  INFO 3849 --- [nio-8080-exec-7] c.n.u.concurrent.ShutdownEnabledTimer    : Shutdown hook installed for: NFLoadBalancer-PingTimer-consul-sample
+2018-05-17 12:18:47.280  INFO 3849 --- [nio-8080-exec-7] c.netflix.loadbalancer.BaseLoadBalancer  : Client: consul-sample instantiated a LoadBalancer: DynamicServerListLoadBalancer:{NFLoadBalancer:name=consul-sample,current list of Servers=[],Load balancer stats=Zone stats: {},Server stats: []}ServerList:null
+2018-05-17 12:18:47.292  INFO 3849 --- [nio-8080-exec-7] c.n.l.DynamicServerListLoadBalancer      : Using serverListUpdater PollingServerListUpdater
+2018-05-17 12:18:47.354  INFO 3849 --- [nio-8080-exec-7] c.netflix.config.ChainedDynamicProperty  : Flipping property: consul-sample.ribbon.ActiveConnectionsLimit to use NEXT property: niws.loadbalancer.availabilityFilteringRule.activeConnectionsLimit = 2147483647
+2018-05-17 12:18:47.363  INFO 3849 --- [nio-8080-exec-7] c.n.l.DynamicServerListLoadBalancer      : DynamicServerListLoadBalancer for client consul-sample initialized: DynamicServerListLoadBalancer:{NFLoadBalancer:name=consul-sample,current list of Servers=[172.17.0.1:8080, 172.17.0.1:8080, 172.17.0.1:8080],Load balancer stats=Zone stats: {unknown=[Zone:unknown;	Instance count:3;	Active connections count: 0;	Circuit breaker tripped count: 0;	Active connections per server: 0.0;]
+},Server stats: [[Server:172.17.0.1:8080;	Zone:UNKNOWN;	Total Requests:0;	Successive connection failure:0;	Total blackout seconds:0;	Last connection made:Thu Jan 01 01:00:00 CET 1970;	First connection made: Thu Jan 01 01:00:00 CET 1970;	Active Connections:0;	total failure count in last (1000) msecs:0;	average resp time:0.0;	90 percentile resp time:0.0;	95 percentile resp time:0.0;	min resp time:0.0;	max resp time:0.0;	stddev resp time:0.0]
+]}ServerList:ConsulServerList{serviceId='consul-sample', tag=null}
+2018-05-17 12:18:48.315  INFO 3849 --- [erListUpdater-0] c.netflix.config.ChainedDynamicProperty  : Flipping property: consul-sample.ribbon.ActiveConnectionsLimit to use NEXT property: niws.loadbalancer.availabilityFilteringRule.activeConnectionsLimit = 2147483647
+----
