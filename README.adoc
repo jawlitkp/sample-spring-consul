@@ -173,6 +173,15 @@ automáticamente actualiza dicho valor:
 2018-05-17 11:20:23.734  INFO 27664 --- [ask-scheduler-3] o.s.c.e.event.RefreshEventListener       : Refresh keys changed: [foo]
 ----
 
+También podremos consultar el valor directamente desde la API REST de Consul a través de la
+siguiente petición:
+
+----
+$ curl http://localhost:8500/v1/kv/config/consul-sample/foo
+[{"LockIndex":0,"Key":"config/consul-sample/foo","Flags":0,"Value":"Zm9vVmFsdWVVcGRhdGVk","CreateIndex":120,"ModifyIndex":142}]l
+----
+
+Donde obtendremos el valor codificado en Base64.
 
 == Service discovery
 
