@@ -141,6 +141,7 @@ Después desde la consola podremos de forma sencilla crear las siguientes claves
 
 image::https://raw.githubusercontent.com/labcabrera/sample-spring-consul/master/docs/images/consul-console-add-key-value.png[Adding custom configuration property]
 
+Donde el formato de la clave será `/config/${appName}/keyValue`.
 
 Para comprobar que nuestra aplicación resuelve correctamente ese valor podemos hacer la siguiente
 petición:
@@ -148,6 +149,10 @@ petición:
 ----
 curl http://localhost:8080/api/v1/config/foo
 ----
+
+Al tener las dependencias de Spring Actuator también podremos inspeccionar nuestra configuración
+accediendo a http://localhost:8080/env, donde veremos la sección de configuración
+_consul:config/consul-sample/_.
 
 Que devolverá el valor que hemos introducido anteriormente.
 
